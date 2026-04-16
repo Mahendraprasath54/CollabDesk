@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom"
-import Login from "./pages/Login"
+import Login    from "./pages/Login"
+import Register from "./pages/Register"
 import Dashboard from "./pages/Dashboard"
 
 function App() {
@@ -7,11 +8,14 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Login />} />
+      <Route path="/"          element={<Login />} />
+      <Route path="/register"  element={<Register />} />
       <Route
         path="/dashboard"
-        element={isAuth ? <Dashboard /> : <Navigate to="/" />}
+        element={isAuth ? <Dashboard /> : <Navigate to="/" replace />}
       />
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

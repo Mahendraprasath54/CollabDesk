@@ -1,208 +1,241 @@
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import API from "../utils/api"
 import socket from "../utils/socket"
+import Header from "../components/Header"
+import TaskCard, { STATUS_CONFIG } from "../components/TaskCard"
 
+// ── Dashboard ────────────────────────────────────────
 const Dashboard = () => {
-  const [tasks, setTasks] = useState([])
-  const [users, setUsers] = useState([])
-  const [title, setTitle] = useState("")
+  const navigate = useNavigate()
+  const [tasks,      setTasks]     = useState([])
+  const [users,      setUsers]     = useState([])
+  const [title,      setTitle]     = useState("")
   const [assignedTo, setAssignedTo] = useState("")
-  const [dueDate, setDueDate] = useState("")
-  const [filter, setFilter] = useState("all")
+  const [dueDate,    setDueDate]   = useState("")
+  const [filter,     setFilter]    = useState("all")
+  const [creating,   setCreating]  = useState(false)
+  const [showForm,   setShowForm]  = useState(false)
 
-  const user = JSON.parse(localStorage.getItem("user"))
+  const user = (() => {
+    try { return JSON.parse(localStorage.getItem("user")) } catch { return null }
+  })()
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!localStorage.getItem("token")) navigate("/")
+  }, [navigate])
 
   const fetchTasks = async () => {
-    const res = await API.get("/tasks")
-    setTasks(res.data)
+    try {
+      const res = await API.get("/tasks")
+      setTasks(res.data)
+    } catch { /* silent */ }
   }
 
   const fetchUsers = async () => {
-    const res = await API.get("/auth/users")
-    setUsers(res.data)
+    try {
+      const res = await API.get("/auth/users")
+      setUsers(res.data)
+    } catch { /* silent */ }
   }
 
   useEffect(() => {
     fetchTasks()
     fetchUsers()
-
     socket.on("taskUpdated", fetchTasks)
-
     return () => socket.off("taskUpdated")
   }, [])
 
-  const createTask = async () => {
-    if (!title || !assignedTo) {
-      alert("Title and assignee required")
-      return
+  const createTask = async (e) => {
+    e.preventDefault()
+    if (!title || !assignedTo) return
+    setCreating(true)
+    try {
+      await API.post("/tasks", { title, assignedTo, dueDate })
+      setTitle(""); setAssignedTo(""); setDueDate("")
+      setShowForm(false)
+    } catch { /* silent */ } finally {
+      setCreating(false)
     }
-
-    await API.post("/tasks", {
-      title,
-      assignedTo,
-      dueDate
-    })
-
-    setTitle("")
-    setAssignedTo("")
-    setDueDate("")
   }
 
   const updateStatus = async (id, status) => {
-    await API.put(`/tasks/${id}`, { status })
+    try { await API.put(`/tasks/${id}`, { status }) }
+    catch { /* silent */ }
   }
 
-  const canEdit = (task) => {
-    return (
-      task.createdBy?._id === user._id ||
-      task.assignedTo?._id === user._id
-    )
-  }
+  const canEdit = (task) =>
+    task.createdBy?._id === user?._id || task.assignedTo?._id === user?._id
 
-  // ✅ FILTER LOGIC
-  let filteredTasks = tasks
+  // Filter
+  let filtered = tasks
+  if (filter === "assigned") filtered = tasks.filter(t => t.assignedTo?._id === user?._id)
+  if (filter === "created")  filtered = tasks.filter(t => t.createdBy?._id  === user?._id)
 
-  if (filter === "assigned") {
-    filteredTasks = tasks.filter(
-      t => t.assignedTo?._id === user._id
-    )
-  }
-
-  if (filter === "created") {
-    filteredTasks = tasks.filter(
-      t => t.createdBy?._id === user._id
-    )
-  }
-
-  // ✅ USE filteredTasks HERE
   const columns = {
-    todo: filteredTasks.filter(t => t.status === "todo"),
-    "in-progress": filteredTasks.filter(t => t.status === "in-progress"),
-    done: filteredTasks.filter(t => t.status === "done")
+    todo:          filtered.filter(t => t.status === "todo"),
+    "in-progress": filtered.filter(t => t.status === "in-progress"),
+    done:          filtered.filter(t => t.status === "done")
+  }
+
+  const inputStyle = {
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    color: "white"
   }
 
   return (
-    <div className="p-6">
+    <div className="min-h-screen flex flex-col" style={{ background: "#0d0e14" }}>
+      <Header />
 
-      {/* 🔥 HEADER */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">CollabDesk</h1>
+      <main className="flex-1 px-4 md:px-8 py-6 max-w-7xl mx-auto w-full">
 
-        <div className="text-right">
-          <p className="font-semibold">Hi, {user?.name}</p>
-          <p className="text-xs text-gray-500">Team: {user?.team}</p>
-
+        {/* ── Page heading + create button ── */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 fade-up">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Task Board</h2>
+            <p className="text-sm text-slate-400 mt-0.5">
+              {tasks.length} task{tasks.length !== 1 ? "s" : ""} across your team
+            </p>
+          </div>
           <button
-            onClick={() => {
-              localStorage.clear()
-              window.location.href = "/"
+            onClick={() => setShowForm(v => !v)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+            style={{
+              background: "linear-gradient(135deg, #6c63ff, #4f46e5)",
+              boxShadow: "0 4px 16px rgba(108,99,255,0.3)"
             }}
-            className="text-red-500 text-xs mt-1"
           >
-            Logout
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Task
           </button>
         </div>
-      </div>
 
-      {/* 🔥 CREATE TASK */}
-      <div className="mb-6 p-4 border rounded">
-        <h2 className="mb-3 font-bold">Create Task</h2>
-
-        <input
-          className="border p-2 mr-2"
-          placeholder="Task title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-
-        <select
-          className="border p-2 mr-2"
-          value={assignedTo}
-          onChange={(e) => setAssignedTo(e.target.value)}
-        >
-          <option value="">Assign User</option>
-          {users.map((u) => (
-            <option key={u._id} value={u._id}>
-              {u.name}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="date"
-          className="border p-2 mr-2"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-        />
-
-        <button
-          onClick={createTask}
-          className="bg-green-500 text-white px-4 py-2"
-        >
-          Add Task
-        </button>
-      </div>
-
-      {/* 🔥 FILTER BUTTONS */}
-      <div className="mb-4 flex gap-2">
-        <button onClick={() => setFilter("all")} className="border px-3 py-1">
-          All
-        </button>
-        <button onClick={() => setFilter("assigned")} className="border px-3 py-1">
-          Assigned to Me
-        </button>
-        <button onClick={() => setFilter("created")} className="border px-3 py-1">
-          Created by Me
-        </button>
-      </div>
-
-      {/* 🔥 BOARD */}
-      <div className="grid grid-cols-3 gap-4">
-        {Object.keys(columns).map(col => (
-          <div key={col} className="border p-4 rounded">
-            <h2 className="font-bold mb-2">{col}</h2>
-
-            {columns[col].map(task => (
-              <div
-                key={task._id}
-                className={`border p-2 mb-2 rounded ${
-                  task.assignedTo?._id === user._id
-                    ? "bg-yellow-100"
-                    : ""
-                }`}
+        {/* ── Create Task Form ── */}
+        {showForm && (
+          <div className="mb-6 rounded-2xl p-6 border fade-up"
+            style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)" }}>
+            <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+              <svg className="w-4 h-4" style={{ color: "#818cf8" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
+              </svg>
+              Create New Task
+            </h3>
+            <form onSubmit={createTask} className="flex flex-wrap gap-3">
+              <input
+                className="flex-1 min-w-48 px-4 py-2.5 rounded-xl text-sm outline-none placeholder-slate-500 transition-all"
+                style={inputStyle}
+                placeholder="Task title…"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                onFocus={e => (e.target.style.borderColor = "rgba(108,99,255,0.7)")}
+                onBlur={e  => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+              />
+              <select
+                className="px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
+                style={{ ...inputStyle, minWidth: "160px", appearance: "none" }}
+                value={assignedTo}
+                onChange={e => setAssignedTo(e.target.value)}
               >
-                <p className="font-semibold">{task.title}</p>
-
-                <p className="text-xs text-gray-500">
-                  Assigned: {task.assignedTo?.name}
-                </p>
-
-                <p className="text-xs text-gray-400">
-                  Created: {task.createdBy?.name}
-                </p>
-
-                {!canEdit(task) && (
-                  <p className="text-xs text-red-500">
-                    You can't edit this
-                  </p>
-                )}
-
-                <select
-                  value={task.status}
-                  disabled={!canEdit(task)}
-                  onChange={(e) =>
-                    updateStatus(task._id, e.target.value)
-                  }
-                >
-                  <option value="todo">To Do</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="done">Done</option>
-                </select>
-              </div>
-            ))}
+                <option value="">Assign to…</option>
+                {users.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
+              </select>
+              <input
+                type="date"
+                className="px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
+                style={inputStyle}
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={creating || !title || !assignedTo}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                style={{
+                  background: "linear-gradient(135deg, #6c63ff, #4f46e5)",
+                  opacity: (creating || !title || !assignedTo) ? 0.5 : 1
+                }}
+              >
+                {creating ? <span className="spinner" /> : null}
+                {creating ? "Adding…" : "Add Task"}
+              </button>
+            </form>
           </div>
-        ))}
-      </div>
+        )}
+
+        {/* ── Filters ── */}
+        <div className="flex gap-2 mb-6 fade-up flex-wrap">
+          {[
+            { key: "all",      label: "All Tasks" },
+            { key: "assigned", label: "Assigned to Me" },
+            { key: "created",  label: "Created by Me" }
+          ].map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className="px-4 py-1.5 rounded-xl text-sm font-medium transition-all"
+              style={{
+                background: filter === f.key ? "rgba(108,99,255,0.2)" : "rgba(255,255,255,0.04)",
+                color: filter === f.key ? "#818cf8" : "#94a3b8",
+                border: `1px solid ${filter === f.key ? "rgba(108,99,255,0.35)" : "rgba(255,255,255,0.08)"}`,
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Kanban Board ── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 fade-up">
+          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+            <div key={key} className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+
+              {/* Column header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ background: cfg.dot }} />
+                  <h3 className="text-sm font-semibold text-white">{cfg.label}</h3>
+                </div>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
+                  {columns[key]?.length ?? 0}
+                </span>
+              </div>
+
+              {/* Tasks */}
+              <div className="min-h-24">
+                {(columns[key] ?? []).length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2"
+                      style={{ background: "rgba(255,255,255,0.04)" }}>
+                      <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
+                      </svg>
+                    </div>
+                    <p className="text-xs text-slate-600">No tasks here</p>
+                  </div>
+                ) : (
+                  (columns[key] ?? []).map(task => (
+                    <TaskCard
+                      key={task._id}
+                      task={task}
+                      user={user}
+                      canEdit={canEdit(task)}
+                      onStatusChange={updateStatus}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </main>
     </div>
   )
 }
