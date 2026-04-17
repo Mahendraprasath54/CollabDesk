@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 
-const TaskModal = ({ users, title, setTitle, assignedTo, setAssignedTo, dueDate, setDueDate, creating, onSubmit, onClose }) => {
+const TaskModal = ({ users, title, setTitle, description, setDescription, assignedTo, setAssignedTo, dueDate, setDueDate, creating, onSubmit, onClose }) => {
 
   const inputRef = useRef(null)
 
@@ -9,7 +9,7 @@ const TaskModal = ({ users, title, setTitle, assignedTo, setAssignedTo, dueDate,
     const onKey = (e) => { if (e.key === "Escape") onClose() }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [onClose])
+  }, []) // Empty dependency to focus only on mount
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -108,6 +108,21 @@ const TaskModal = ({ users, title, setTitle, assignedTo, setAssignedTo, dueDate,
               onChange={e => setTitle(e.target.value)}
               placeholder="What needs to be done?"
               style={inputStyle}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Description <span className="text-slate-600 normal-case font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Add more details about this task..."
+              rows={3}
+              style={{ ...inputStyle, resize: "none" }}
               onFocus={handleFocus}
               onBlur={handleBlur}
             />

@@ -11,14 +11,16 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const [tasks,      setTasks]     = useState([])
   const [users,      setUsers]     = useState([])
-  const [title,      setTitle]     = useState("")
-  const [assignedTo, setAssignedTo] = useState("")
-  const [dueDate,    setDueDate]   = useState("")
+  const [title,       setTitle]      = useState("")
+  const [description, setDescription] = useState("")
+  const [assignedTo,  setAssignedTo]  = useState("")
+  const [dueDate,     setDueDate]     = useState("")
   const [filter,     setFilter]    = useState("all")
   const [creating,   setCreating]  = useState(false)
   const [showForm,   setShowForm]  = useState(false)
   const [selectedTask, setSelectedTask] = useState(null)
   const [alertDismissed, setAlertDismissed] = useState(false)
+  const [toast, setToast] = useState(null) // { msg: string, id: number }
 
   const user = (() => {
     try { return JSON.parse(localStorage.getItem("user")) } catch { return null }
@@ -55,7 +57,20 @@ const Dashboard = () => {
     fetchUsers()
     const handler = () => fetchTasksRef.current()
     socket.on("taskUpdated", handler)
-    return () => socket.off("taskUpdated", handler)
+    
+    const notifyHandler = (msg) => {
+      const id = Date.now()
+      setToast({ msg, id })
+      setTimeout(() => {
+        setToast(prev => prev?.id === id ? null : prev)
+      }, 5000)
+    }
+    socket.on("taskNotification", notifyHandler)
+
+    return () => {
+      socket.off("taskUpdated", handler)
+      socket.off("taskNotification", notifyHandler)
+    }
   }, [])
 
   const createTask = async (e) => {
@@ -64,11 +79,11 @@ const Dashboard = () => {
     setCreating(true)
     try {
       // Don't send empty dueDate — Mongoose can't cast "" to a Date
-      const payload = { title, assignedTo }
+      const payload = { title, description, assignedTo }
       if (dueDate) payload.dueDate = dueDate
       await API.post("/tasks", payload)
       await fetchTasks()      // update board immediately
-      setTitle(""); setAssignedTo(""); setDueDate("")
+      setTitle(""); setDescription(""); setAssignedTo(""); setDueDate("")
       setShowForm(false)
     } catch(e) {
         console.log(e);
@@ -124,12 +139,30 @@ const Dashboard = () => {
 
   const closeModal = () => {
     setShowForm(false)
-    setTitle(""); setAssignedTo(""); setDueDate("")
+    setTitle(""); setDescription(""); setAssignedTo(""); setDueDate("")
   }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#0d0e14" }}>
       <Header />
+
+      {/* ── Real-time Toast Notification ── */}
+      {toast && (
+        <div className="fixed top-20 right-8 z-[100] fade-up pointer-events-none">
+          <div className="bg-indigo-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-indigo-400/30 backdrop-blur-md"
+            style={{ boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
+            <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center animate-pulse">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest font-bold opacity-60 mb-0.5">Live Activity</p>
+              <p className="text-sm font-semibold">{toast.msg}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 px-4 md:px-8 py-6 max-w-7xl mx-auto w-full">
 
@@ -161,6 +194,7 @@ const Dashboard = () => {
           <TaskModal
             users={users}
             title={title}           setTitle={setTitle}
+            description={description} setDescription={setDescription}
             assignedTo={assignedTo} setAssignedTo={setAssignedTo}
             dueDate={dueDate}       setDueDate={setDueDate}
             creating={creating}

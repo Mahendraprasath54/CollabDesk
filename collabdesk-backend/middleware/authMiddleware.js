@@ -14,7 +14,8 @@ module.exports = async (req, res, next) => {
     const user = await User.findById(decoded.id)
 
     req.user = {
-      id:   user._id.toString(),   // plain string for safe === comparisons in controllers
+      id:   user._id.toString(),
+      name: user.name,
       team: user.team
     }
 

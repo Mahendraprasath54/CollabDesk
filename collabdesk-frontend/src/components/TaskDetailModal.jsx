@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react"
-import { STATUS_CONFIG } from "./TaskCard"
+ import { useEffect, useState } from "react"
+ import API from "../utils/api"
+ import { STATUS_CONFIG } from "./TaskCard"
 
 const STATUSES = ["todo", "in-progress", "done"]
 
 const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
   const [selected, setSelected] = useState(task.status)
   const [saving,   setSaving]   = useState(false)
+  const [localDesc, setLocalDesc] = useState(task.description || "")
+  const [savingDesc, setSavingDesc] = useState(false)
 
   const userId      = String(user?._id || user?.id || "")
   const creatorId   = String(task.createdBy?._id || task.createdBy || "")
@@ -23,7 +26,8 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
   // Update internal state if the task prop changes (from fetchTasks)
   useEffect(() => {
     setSelected(task.status)
-  }, [task.status])
+    setLocalDesc(task.description || "")
+  }, [task.status, task.description])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose() }
@@ -42,9 +46,21 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
       await onStatusChange(task._id, selected)
       setSaving(false)
       onClose()
+    } finally {
+      setAddingComment(false)
+    }
+  }
+
+  const handleUpdateDescription = async () => {
+    if (localDesc === task.description) return
+    setSavingDesc(true)
+    try {
+      await API.put(`/tasks/${task._id}`, { description: localDesc })
     } catch (e) {
-      setSaving(false)
-      // Error is handled in updateStatus
+      console.error("Description update failed", e)
+      alert("Failed to save description")
+    } finally {
+      setSavingDesc(false)
     }
   }
 
@@ -193,12 +209,54 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
               })}
             </div>
 
-            <p className="text-xs mt-2 text-center"
-              style={{ color: canEdit ? "#475569" : "#ef4444" }}>
-              {canEdit
-                ? "You created this task — you can move it between stages."
-                : "Only the creator of this task can move it between stages."}
-            </p>
+            <div className="mt-4 pt-3 flex flex-col gap-1 items-center border-t border-white/5">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Permissions</p>
+              <div className="flex gap-4">
+                <span className="text-[10px] flex items-center gap-1" style={{ color: "#94a3b8" }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> Description: Open to Team
+                </span>
+                <span className="text-[10px] flex items-center gap-1" style={{ color: canEdit ? "#818cf8" : "#f87171" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: canEdit ? "#818cf8" : "#f87171" }} /> 
+                  Stages: {canEdit ? "You can Move" : "Creator Only"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Collaborative Content: Description ── */}
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Description</p>
+              {localDesc !== (task.description || "") && (
+                <button 
+                  onClick={handleUpdateDescription}
+                  disabled={savingDesc}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold text-white transition-all"
+                  style={{
+                    background: "linear-gradient(135deg, #6c63ff, #4f46e5)",
+                    boxShadow: "0 4px 12px rgba(108,99,255,0.25)"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"}
+                  onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+                >
+                  {savingDesc ? (
+                    <div className="w-2.5 h-2.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                  {savingDesc ? "Saving" : "Save Changes"}
+                </button>
+              )}
+            </div>
+            <textarea
+              value={localDesc}
+              onChange={e => setLocalDesc(e.target.value)}
+              placeholder="Add a detailed description..."
+              className="w-full rounded-xl p-3 text-sm text-slate-300 leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-all custom-scrollbar min-h-[140px]"
+              style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+            />
           </div>
 
           <div className="mb-4" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }} />
@@ -206,10 +264,9 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
           <div className="flex gap-3">
             <button
               onClick={onClose}
+              disabled={saving || savingDesc}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
               style={{ background: "rgba(255,255,255,0.05)", color: "#94a3b8", border: "1px solid rgba(255,255,255,0.08)" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.09)")}
-              onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
             >
               Close
             </button>
@@ -217,7 +274,7 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
             {canEdit && (
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || savingDesc}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
                 style={{
                   background: selected !== task.status
@@ -233,7 +290,7 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                 }
-                {saving ? "Saving…" : selected !== task.status ? "Save Status" : "No change"}
+                {saving ? "Saving…" : "Save Status"}
               </button>
             )}
           </div>

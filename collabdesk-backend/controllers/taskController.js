@@ -39,19 +39,26 @@ exports.getTasks = async (req, res) => {
   }
 }
 
+
+
 exports.updateTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id)
-
     if (!task) return res.status(404).json({ msg: "Not found" })
 
-    // Only the creator can move the task between stages
-    const creatorId = task.createdBy?.toString()
-    const requesterId = req.user.id
-    
-    if (creatorId !== requesterId) {
-      console.log(`Permission Denied: Creator(${creatorId}) !== Requester(${requesterId})`)
-      return res.status(403).json({ msg: "Only the creator can move this task." })
+    // If changing status: Only creator can do it
+    if (req.body.status && req.body.status !== task.status) {
+      if (task.createdBy?.toString() !== req.user.id) {
+        return res.status(403).json({ msg: "Only the creator can move stages." })
+      }
+    }
+
+    // Capture changes for notification
+    let activityMsg = ""
+    if (req.body.status && req.body.status !== task.status) {
+      activityMsg = `${req.user.name || "A member"} moved "${task.title}" to ${req.body.status}`
+    } else if (req.body.description !== task.description) {
+      activityMsg = `${req.user.name || "A member"} updated the description of "${task.title}"`
     }
 
     const updated = await Task.findByIdAndUpdate(
@@ -61,6 +68,9 @@ exports.updateTask = async (req, res) => {
     )
 
     req.app.get("io").emit("taskUpdated")
+    if (activityMsg) {
+      req.app.get("io").emit("taskNotification", activityMsg)
+    }
 
     res.json(updated)
   } catch (err) {
