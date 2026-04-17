@@ -60,16 +60,23 @@ const Header = () => {
         
         <div className="hidden sm:block w-px h-8" style={{ background: "rgba(255,255,255,0.1)" }} />
 
-        {/* Avatar + name */}
-        <div className="flex items-center gap-2.5">
+        {/* Avatar + name (Clickable to Profile) */}
+        <div 
+          onClick={() => navigate("/profile")}
+          className="flex items-center gap-2.5 cursor-pointer group hover:bg-white/5 p-1 rounded-xl transition-all"
+        >
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-            style={{ background: "linear-gradient(135deg, #7c3aed, #6c63ff)" }}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-lg"
+            style={{ 
+              background: user?.avatar 
+                ? `url(${user.avatar}) center/cover` 
+                : "linear-gradient(135deg, #7c3aed, #6c63ff)" 
+            }}
           >
-            {initials}
+            {!user?.avatar && initials}
           </div>
           <div className="hidden md:flex flex-col">
-            <span className="text-sm font-semibold text-white leading-tight">{userName}</span>
+            <span className="text-sm font-semibold text-white leading-tight group-hover:text-indigo-400 transition-colors">{userName}</span>
             <span className="text-xs text-slate-400 leading-tight">{user?.role || "member"}</span>
           </div>
         </div>

@@ -9,6 +9,8 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
   const [saving,   setSaving]   = useState(false)
   const [localDesc, setLocalDesc] = useState(task.description || "")
   const [savingDesc, setSavingDesc] = useState(false)
+  const [localPriority, setLocalPriority] = useState(task.priority || "medium")
+  const [savingPrio, setSavingPrio] = useState(false)
 
   const userId      = String(user?._id || user?.id || "")
   const creatorId   = String(task.createdBy?._id || task.createdBy || "")
@@ -27,7 +29,8 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
   useEffect(() => {
     setSelected(task.status)
     setLocalDesc(task.description || "")
-  }, [task.status, task.description])
+    setLocalPriority(task.priority || "medium")
+  }, [task.status, task.description, task.priority])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose() }
@@ -48,6 +51,20 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
       onClose()
     } finally {
       setAddingComment(false)
+    }
+  }
+
+  const handleUpdatePriority = async (newPrio) => {
+    if (!canEdit || newPrio === task.priority) return
+    setSavingPrio(true)
+    try {
+      await API.put(`/tasks/${task._id}`, { priority: newPrio })
+      setLocalPriority(newPrio)
+    } catch (e) {
+      console.error("Priority update failed", e)
+      alert("Failed to update priority")
+    } finally {
+      setSavingPrio(false)
     }
   }
 
@@ -76,8 +93,9 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="relative w-full max-w-lg rounded-2xl fade-up overflow-hidden"
+        className="relative w-full max-w-lg rounded-2xl fade-up overflow-hidden flex flex-col"
         style={{
+          maxHeight: "92vh",
           background: "rgba(20,21,32,0.92)",
           backdropFilter: "blur(28px)",
           WebkitBackdropFilter: "blur(28px)",
@@ -85,10 +103,10 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
           boxShadow: "0 32px 80px rgba(0,0,0,0.7)"
         }}
       >
-        <div className="h-1 w-full"
+        <div className="h-1 w-full shrink-0"
           style={{ background: `linear-gradient(90deg, ${cfg.dot}, transparent)` }} />
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto custom-scrollbar">
 
           <div className="flex items-start justify-between gap-4 mb-5">
             <div className="flex-1">
@@ -209,6 +227,36 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
               })}
             </div>
 
+            <div className="mt-5">
+              <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-3">Set Priority</p>
+              <div className="flex gap-2">
+                {[
+                  { val: "low",    label: "Low",    color: "#94a3b8", bg: "rgba(148,163,184,0.1)", border: "rgba(148,163,184,0.3)" },
+                  { val: "medium", label: "Medium", color: "#10b981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.3)" },
+                  { val: "high",   label: "High",   color: "#f43f5e", bg: "rgba(225,29,72,0.1)",   border: "rgba(225,29,72,0.3)" }
+                ].map(p => {
+                  const active = localPriority === p.val
+                  return (
+                    <button
+                      key={p.val}
+                      disabled={!canEdit || savingPrio}
+                      onClick={() => handleUpdatePriority(p.val)}
+                      className="flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
+                      style={{
+                        background: active ? p.bg : "rgba(255,255,255,0.03)",
+                        border: `1px solid ${active ? p.border : "rgba(255,255,255,0.08)"}`,
+                        color: active ? p.color : "#475569",
+                        cursor: canEdit ? "pointer" : "not-allowed",
+                        opacity: !active && !canEdit ? 0.4 : 1
+                      }}
+                    >
+                      {active && savingPrio ? "..." : p.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             <div className="mt-4 pt-3 flex flex-col gap-1 items-center border-t border-white/5">
               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Permissions</p>
               <div className="flex gap-4">
@@ -217,7 +265,7 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
                 </span>
                 <span className="text-[10px] flex items-center gap-1" style={{ color: canEdit ? "#818cf8" : "#f87171" }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: canEdit ? "#818cf8" : "#f87171" }} /> 
-                  Stages: {canEdit ? "You can Move" : "Creator Only"}
+                  Stages & Priority: {canEdit ? "You can Move" : "Creator Only"}
                 </span>
               </div>
             </div>
