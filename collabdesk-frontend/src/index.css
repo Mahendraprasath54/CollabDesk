@@ -1,15 +1,12 @@
 @import "tailwindcss";
 
-/* Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #0f0f17; }
 ::-webkit-scrollbar-thumb { background: #2a2b3d; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3b50; }
 
-/* Smooth focus ring */
 * { box-sizing: border-box; }
 
-/* Gradient background for body */
 body {
   background: #0d0e14;
   background-image:
@@ -42,7 +39,7 @@ body {
   animation: spin 0.7s linear infinite;
 }
 
-/* Fade-in entrance */
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
