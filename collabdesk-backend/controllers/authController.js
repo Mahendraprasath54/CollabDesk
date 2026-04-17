@@ -45,7 +45,7 @@ exports.login = async (req, res) => {
 
     const { email, password } = req.body
 
-    const user = await User.findOne({ email })
+    const user = await User.findOne({ email }).populate("team")
     if (!user) return res.status(400).json({ msg: "Invalid credentials" })
 
     const match = await bcrypt.compare(password, user.password)
@@ -57,4 +57,13 @@ exports.login = async (req, res) => {
   } catch (err) {
     res.status(500).json({ err: err.message })
   }
+}
+
+exports.Users = async(req,res) => {
+  const users = await require("../models/User")
+    .find()
+    .select("name _id")
+
+  res.json(users)
+
 }

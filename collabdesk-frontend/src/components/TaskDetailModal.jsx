@@ -7,10 +7,10 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
   const [selected, setSelected] = useState(task.status)
   const [saving,   setSaving]   = useState(false)
 
-  const userId  = String(user?._id || user?.id || "")
+  const userId     = String(user?._id || user?.id || "")
   const isCreator  = String(task.createdBy?._id  || "") === userId
   const isAssignee = String(task.assignedTo?._id || "") === userId
-  const canEdit    = isCreator || isAssignee
+  const canEdit    = isAssignee   // only the assignee can move the task
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose() }
@@ -178,8 +178,8 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
             <p className="text-xs mt-2 text-center"
               style={{ color: canEdit ? "#475569" : "#ef4444" }}>
               {canEdit
-                ? "Only you (creator or assignee) can move this task."
-                : "Only the creator or assignee can move this task."}
+                ? "You are the assignee — you can move this task."
+                : "Only the assignee can move this task between stages."}
             </p>
           </div>
 

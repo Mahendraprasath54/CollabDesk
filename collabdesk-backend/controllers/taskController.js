@@ -34,11 +34,9 @@ exports.updateTask = async (req, res) => {
 
     if (!task) return res.status(404).json({ msg: "Not found" })
 
-    if (
-      task.createdBy.toString() !== req.user.id &&
-      task.assignedTo?.toString() !== req.user.id
-    ) {
-      return res.status(403).json({ msg: "Not allowed" })
+    // Only the assignee can move the task between stages
+    if (task.assignedTo?.toString() !== req.user.id) {
+      return res.status(403).json({ msg: "Only the assignee can move this task." })
     }
 
     const updated = await Task.findByIdAndUpdate(

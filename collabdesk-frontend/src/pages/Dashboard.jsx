@@ -63,6 +63,7 @@ const Dashboard = () => {
     setCreating(true)
     try {
       await API.post("/tasks", { title, assignedTo, dueDate })
+      await fetchTasks()      // update board immediately
       setTitle(""); setAssignedTo(""); setDueDate("")
       setShowForm(false)
     } catch(e) {
@@ -83,7 +84,6 @@ const Dashboard = () => {
 
   const userId  = String(user?._id || user?.id || "")
   const canEdit = (task) =>
-    String(task.createdBy?._id  || "") === userId ||
     String(task.assignedTo?._id || "") === userId
 
   // Filter
