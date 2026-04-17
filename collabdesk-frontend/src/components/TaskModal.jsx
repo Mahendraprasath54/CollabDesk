@@ -141,10 +141,10 @@ const TaskModal = ({ users, title, setTitle, assignedTo, setAssignedTo, dueDate,
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Due Date <span className="text-slate-600 normal-case font-normal">(optional)</span>
+              Due Date & Time <span className="text-slate-600 normal-case font-normal">(optional)</span>
             </label>
             <input
-              type="date"
+              type="datetime-local"
               value={dueDate}
               onChange={e => setDueDate(e.target.value)}
               style={inputStyle}

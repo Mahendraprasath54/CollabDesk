@@ -18,9 +18,20 @@ exports.createTask = async (req, res) => {
 
 exports.getTasks = async (req, res) => {
   try {
+    // Purge expired non-done tasks: delete only tasks due BEFORE today (not today itself)
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0)
+    const expired = await Task.deleteMany({
+      team:    req.user.team,
+      dueDate: { $lt: startOfToday },
+      status:  { $ne: "done" }
+    })
+    if (expired.deletedCount > 0) {
+      req.app.get("io").emit("taskUpdated")
+    }
+
     const tasks = await Task.find({ team: req.user.team })
       .populate("assignedTo", "name")
-      .populate("createdBy", "name")
+      .populate("createdBy",  "name")
 
     res.json(tasks)
   } catch (err) {
@@ -34,9 +45,13 @@ exports.updateTask = async (req, res) => {
 
     if (!task) return res.status(404).json({ msg: "Not found" })
 
-    // Only the assignee can move the task between stages
-    if (task.assignedTo?.toString() !== req.user.id) {
-      return res.status(403).json({ msg: "Only the assignee can move this task." })
+    // Only the creator can move the task between stages
+    const creatorId = task.createdBy?.toString()
+    const requesterId = req.user.id
+    
+    if (creatorId !== requesterId) {
+      console.log(`Permission Denied: Creator(${creatorId}) !== Requester(${requesterId})`)
+      return res.status(403).json({ msg: "Only the creator can move this task." })
     }
 
     const updated = await Task.findByIdAndUpdate(

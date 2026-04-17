@@ -44,7 +44,6 @@ const TaskCard = ({ task, user, onClick }) => {
   const isOwn  = String(task.assignedTo?._id || "") === String(user?._id || user?.id || "")
 
   const daysLeft = getDaysLeft(task.dueDate)
-  // Urgency applies only to non-done tasks with a due date
   const isDone   = task.status === "done"
   const isCritical = !isDone && daysLeft !== null && daysLeft <= 1   // today or tomorrow
   const isWarning  = !isDone && daysLeft !== null && daysLeft <= 3 && !isCritical
@@ -54,9 +53,10 @@ const TaskCard = ({ task, user, onClick }) => {
   // Due date label
   const dueDateLabel = () => {
     if (daysLeft === null) return null
-    if (daysLeft === 0) return "Due today"
-    if (daysLeft === 1) return "Due tomorrow"
-    if (daysLeft <= 3) return `Due in ${daysLeft} days`
+    const timeStr = new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    if (daysLeft === 0) return `Due today at ${timeStr}`
+    if (daysLeft === 1) return `Due tomorrow at ${timeStr}`
+    if (daysLeft <= 3) return `In ${daysLeft} days`
     return new Date(task.dueDate).toLocaleDateString()
   }
 
@@ -135,7 +135,7 @@ const TaskCard = ({ task, user, onClick }) => {
             </svg>
             <span className="text-xs font-medium"
               style={{ color: isCritical ? "#f87171" : isWarning ? "#fbbf24" : "#94a3b8" }}>
-              {dueDateLabel() || new Date(task.dueDate).toLocaleDateString()}
+              {new Date(task.dueDate).toLocaleDateString()} at {new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
         )}

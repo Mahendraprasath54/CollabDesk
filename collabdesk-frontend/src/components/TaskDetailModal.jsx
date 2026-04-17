@@ -135,7 +135,7 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
               </svg>
               <span className="text-sm text-slate-300">
                 Due <span className="font-semibold text-white">
-                  {new Date(task.dueDate).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric" })}
+                  {new Date(task.dueDate).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric" })} at {new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </span>
             </div>

@@ -90,7 +90,6 @@ const Dashboard = () => {
 
   const userId  = String(user?._id || user?.id || "")
 
-  // ── Sync selectedTask if tasks array refreshes while modal is open ──
   useEffect(() => {
     if (selectedTask) {
       const fresh = (tasks || []).find(t => String(t._id) === String(selectedTask._id))
@@ -98,12 +97,10 @@ const Dashboard = () => {
     }
   }, [tasks])
 
-  // ── Filter tasks ──
   let filtered = tasks || []
   if (filter === "assigned") filtered = (tasks || []).filter(t => String(t.assignedTo?._id || t.assignedTo || "") === userId)
   if (filter === "created")  filtered = (tasks || []).filter(t => String(t.createdBy?._id  || t.createdBy  || "") === userId)
 
-  // ── Sort helper: soonest due date first, no-date tasks go last ──
   const sortByDue = (arr) =>
     [...arr].sort((a, b) => {
       if (!a.dueDate && !b.dueDate) return 0
@@ -112,7 +109,6 @@ const Dashboard = () => {
       return new Date(a.dueDate) - new Date(b.dueDate)
     })
 
-  // ── Tasks assigned to me expiring in ≤3 days (for alert banner) ──
   const urgentForMe = tasks.filter(t => {
     if (String(t.assignedTo?._id || "") !== userId) return false
     if (t.status === "done") return false
@@ -173,7 +169,6 @@ const Dashboard = () => {
           />
         )}
 
-        {/* ── Urgency alert banner ── */}
         {urgentForMe.length > 0 && !alertDismissed && (
           <div className="mb-6 rounded-2xl p-4 fade-up"
             style={{
