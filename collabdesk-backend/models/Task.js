@@ -20,7 +20,12 @@ const taskSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Team"
   },
-  dueDate: Date
+  dueDate: Date,
+  priority: {
+    type: String,
+    enum: ["low", "medium", "high"],
+    default: "medium"
+  }
 }, { timestamps: true })
 
 module.exports = mongoose.model("Task", taskSchema)

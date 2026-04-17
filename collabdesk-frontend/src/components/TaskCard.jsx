@@ -1,3 +1,10 @@
+// ── Priority config ───────────────────────────────────
+const PRIORITY_CONFIG = {
+  low:    { label: "Low",    color: "#94a3b8", bg: "rgba(148,163,184,0.1)", border: "rgba(148,163,184,0.2)" },
+  medium: { label: "Medium", color: "#10b981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.2)" },
+  high:   { label: "High",   color: "#f43f5e", bg: "rgba(225,29,72,0.1)",   border: "rgba(225,29,72,0.2)" }
+}
+
 // ── Status config — shared across board columns ──────
 export const STATUS_CONFIG = {
   todo: {
@@ -41,6 +48,7 @@ const URGENCY = {
 // ── TaskCard component ────────────────────────────────
 const TaskCard = ({ task, user, onClick }) => {
   const cfg    = STATUS_CONFIG[task.status] || STATUS_CONFIG.todo
+  const prio   = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium
   const isOwn  = String(task.assignedTo?._id || "") === String(user?._id || user?.id || "")
 
   const daysLeft = getDaysLeft(task.dueDate)
@@ -88,7 +96,15 @@ const TaskCard = ({ task, user, onClick }) => {
     >
       {/* Title + badge row */}
       <div className="flex items-start justify-between gap-2 mb-3">
-        <p className="text-sm font-semibold text-white leading-snug">{task.title}</p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+             <span className="text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded border"
+               style={{ color: prio.color, backgroundColor: prio.bg, borderColor: prio.border }}>
+               {prio.label}
+             </span>
+          </div>
+          <p className="text-sm font-semibold text-white leading-snug">{task.title}</p>
+        </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           {isOwn && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full"

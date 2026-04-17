@@ -15,7 +15,10 @@ const Dashboard = () => {
   const [description, setDescription] = useState("")
   const [assignedTo,  setAssignedTo]  = useState("")
   const [dueDate,     setDueDate]     = useState("")
-  const [filter,     setFilter]    = useState("all")
+  const [priority,    setPriority]    = useState("medium")
+  const [filter,      setFilter]      = useState("all")
+  const [search,      setSearch]      = useState("")
+  const [assigneeFilt, setAssigneeFilt] = useState("all")
   const [creating,   setCreating]  = useState(false)
   const [showForm,   setShowForm]  = useState(false)
   const [selectedTask, setSelectedTask] = useState(null)
@@ -79,11 +82,11 @@ const Dashboard = () => {
     setCreating(true)
     try {
       // Don't send empty dueDate — Mongoose can't cast "" to a Date
-      const payload = { title, description, assignedTo }
+      const payload = { title, description, assignedTo, priority }
       if (dueDate) payload.dueDate = dueDate
       await API.post("/tasks", payload)
       await fetchTasks()      // update board immediately
-      setTitle(""); setDescription(""); setAssignedTo(""); setDueDate("")
+      setTitle(""); setDescription(""); setAssignedTo(""); setDueDate(""); setPriority("medium")
       setShowForm(false)
     } catch(e) {
         console.log(e);
@@ -112,9 +115,27 @@ const Dashboard = () => {
     }
   }, [tasks])
 
+  const closeModal = () => {
+    setShowForm(false)
+    setTitle(""); setDescription(""); setAssignedTo(""); setDueDate(""); setPriority("medium")
+  }
+
+  // --- Filter Logic ---
   let filtered = tasks || []
-  if (filter === "assigned") filtered = (tasks || []).filter(t => String(t.assignedTo?._id || t.assignedTo || "") === userId)
-  if (filter === "created")  filtered = (tasks || []).filter(t => String(t.createdBy?._id  || t.createdBy  || "") === userId)
+  
+  // 1. Text Search
+  if (search) {
+    filtered = filtered.filter(t => t.title.toLowerCase().includes(search.toLowerCase()))
+  }
+
+  // 2. Assignment Filter (Mine vs All)
+  if (filter === "assigned") filtered = filtered.filter(t => String(t.assignedTo?._id || t.assignedTo || "") === userId)
+  if (filter === "created")  filtered = filtered.filter(t => String(t.createdBy?._id  || t.createdBy  || "") === userId)
+
+  // 3. User-specific Filter
+  if (assigneeFilt !== "all") {
+    filtered = filtered.filter(t => String(t.assignedTo?._id || t.assignedTo || "") === assigneeFilt)
+  }
 
   const sortByDue = (arr) =>
     [...arr].sort((a, b) => {
@@ -134,12 +155,7 @@ const Dashboard = () => {
   const columns = {
     todo:          sortByDue(filtered.filter(t => t.status === "todo")),
     "in-progress": sortByDue(filtered.filter(t => t.status === "in-progress")),
-    done:          filtered.filter(t => t.status === "done")   // done: no urgency sort needed
-  }
-
-  const closeModal = () => {
-    setShowForm(false)
-    setTitle(""); setDescription(""); setAssignedTo(""); setDueDate("")
+    done:          filtered.filter(t => t.status === "done")
   }
 
   return (
@@ -251,25 +267,59 @@ const Dashboard = () => {
         )}
 
 
-        <div className="flex gap-2 mb-6 fade-up flex-wrap">
-          {[
-            { key: "all",      label: "All Tasks" },
-            { key: "assigned", label: "Assigned to Me" },
-            { key: "created",  label: "Created by Me" }
-          ].map(f => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className="px-4 py-1.5 rounded-xl text-sm font-medium transition-all"
-              style={{
-                background: filter === f.key ? "rgba(108,99,255,0.2)" : "rgba(255,255,255,0.04)",
-                color: filter === f.key ? "#818cf8" : "#94a3b8",
-                border: `1px solid ${filter === f.key ? "rgba(108,99,255,0.35)" : "rgba(255,255,255,0.08)"}`,
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* ── Search & Filter Controls ── */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 fade-up">
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { key: "all",      label: "All Tasks" },
+              { key: "assigned", label: "Assigned to Me" },
+              { key: "created",  label: "Created by Me" }
+            ].map(f => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                style={{
+                  background: filter === f.key ? "rgba(108,99,255,0.2)" : "rgba(255,255,255,0.04)",
+                  color: filter === f.key ? "#818cf8" : "#94a3b8",
+                  border: `1px solid ${filter === f.key ? "rgba(108,99,255,0.35)" : "rgba(255,255,255,0.08)"}`,
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3 flex-1 md:justify-end">
+            <div className="relative flex-1 max-w-xs">
+              <input
+                type="text"
+                placeholder="Search tasks..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/20 transition-all"
+              />
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <div className="relative">
+              <select
+                value={assigneeFilt}
+                onChange={e => setAssigneeFilt(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-xl py-2 pl-3 pr-8 text-xs text-slate-300 outline-none focus:border-indigo-400/40 transition-all cursor-pointer appearance-none"
+              >
+                <option value="all" className="bg-[#1a1b26]">Filter by Team Member</option>
+                {users.map(u => (
+                  <option key={u._id} value={u._id} className="bg-[#1a1b26]">{u.name}</option>
+                ))}
+              </select>
+              <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
         </div>
 
         

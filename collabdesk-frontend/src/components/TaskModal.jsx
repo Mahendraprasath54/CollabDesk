@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 
-const TaskModal = ({ users, title, setTitle, description, setDescription, assignedTo, setAssignedTo, dueDate, setDueDate, creating, onSubmit, onClose }) => {
+const TaskModal = ({ users, title, setTitle, description, setDescription, priority, setPriority, assignedTo, setAssignedTo, dueDate, setDueDate, creating, onSubmit, onClose }) => {
 
   const inputRef = useRef(null)
 
@@ -46,8 +46,9 @@ const TaskModal = ({ users, title, setTitle, description, setDescription, assign
     >
       {/* ── Modal card ── */}
       <div
-        className="relative w-full max-w-md rounded-2xl p-6 fade-up"
+        className="relative w-full max-w-md rounded-2xl p-6 fade-up overflow-y-auto custom-scrollbar"
         style={{
+          maxHeight: "92vh",
           background: "rgba(255,255,255,0.05)",
           backdropFilter: "blur(24px)",
           WebkitBackdropFilter: "blur(24px)",
@@ -127,7 +128,33 @@ const TaskModal = ({ users, title, setTitle, description, setDescription, assign
               onBlur={handleBlur}
             />
           </div>
-
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Priority
+            </label>
+            <div className="flex gap-2">
+              {[
+                { val: "low",    label: "Low",    bg: "rgba(148,163,184,0.1)", border: "rgba(148,163,184,0.3)", color: "#94a3b8" },
+                { val: "medium", label: "Medium", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.3)", color: "#10b981" },
+                { val: "high",   label: "High",   bg: "rgba(225,29,72,0.1)",   border: "rgba(225,29,72,0.3)",   color: "#f43f5e" }
+              ].map(p => (
+                <button
+                  key={p.val}
+                  type="button"
+                  onClick={() => setPriority(p.val)}
+                  className="flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
+                  style={{
+                    background: priority === p.val ? p.bg : "rgba(255,255,255,0.03)",
+                    border: `1px solid ${priority === p.val ? p.border : "rgba(255,255,255,0.08)"}`,
+                    color: priority === p.val ? p.color : "#475569",
+                    boxShadow: priority === p.val ? `0 0 12px ${p.bg}` : "none"
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
               Assign To <span style={{ color: "#818cf8" }}>*</span>

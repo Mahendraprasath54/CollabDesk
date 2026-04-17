@@ -12,7 +12,9 @@ const userSchema = new mongoose.Schema({
   team: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Team"
-  }
+  },
+  avatar: String,
+  bio: String
 }, { timestamps: true })
 
 module.exports = mongoose.model("User", userSchema)
