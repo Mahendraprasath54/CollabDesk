@@ -4,8 +4,8 @@ import API from "../utils/api"
 import socket from "../utils/socket"
 import Header from "../components/Header"
 import TaskCard, { STATUS_CONFIG } from "../components/TaskCard"
+import TaskModal from "../components/TaskModal"
 
-// ── Dashboard ────────────────────────────────────────
 const Dashboard = () => {
   const navigate = useNavigate()
   const [tasks,      setTasks]     = useState([])
@@ -21,7 +21,6 @@ const Dashboard = () => {
     try { return JSON.parse(localStorage.getItem("user")) } catch { return null }
   })()
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!localStorage.getItem("token")) navigate("/")
   }, [navigate])
@@ -30,14 +29,18 @@ const Dashboard = () => {
     try {
       const res = await API.get("/tasks")
       setTasks(res.data)
-    } catch { /* silent */ }
+    }  catch(e) {
+        console.log(e);
+     }
   }
 
   const fetchUsers = async () => {
     try {
       const res = await API.get("/auth/users")
       setUsers(res.data)
-    } catch { /* silent */ }
+    }  catch(e) {
+        console.log(e);
+     }
   }
 
   useEffect(() => {
@@ -55,14 +58,17 @@ const Dashboard = () => {
       await API.post("/tasks", { title, assignedTo, dueDate })
       setTitle(""); setAssignedTo(""); setDueDate("")
       setShowForm(false)
-    } catch { /* silent */ } finally {
+    } catch(e) {
+        console.log(e);
+     } finally {
       setCreating(false)
     }
   }
 
   const updateStatus = async (id, status) => {
     try { await API.put(`/tasks/${id}`, { status }) }
-    catch { /* silent */ }
+    catch(e){
+        console.log(e);
   }
 
   const canEdit = (task) =>
@@ -79,10 +85,9 @@ const Dashboard = () => {
     done:          filtered.filter(t => t.status === "done")
   }
 
-  const inputStyle = {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    color: "white"
+  const closeModal = () => {
+    setShowForm(false)
+    setTitle(""); setAssignedTo(""); setDueDate("")
   }
 
   return (
@@ -100,7 +105,7 @@ const Dashboard = () => {
             </p>
           </div>
           <button
-            onClick={() => setShowForm(v => !v)}
+            onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
             style={{
               background: "linear-gradient(135deg, #6c63ff, #4f46e5)",
@@ -114,60 +119,20 @@ const Dashboard = () => {
           </button>
         </div>
 
-        {/* ── Create Task Form ── */}
+       
         {showForm && (
-          <div className="mb-6 rounded-2xl p-6 border fade-up"
-            style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)" }}>
-            <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-              <svg className="w-4 h-4" style={{ color: "#818cf8" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
-              </svg>
-              Create New Task
-            </h3>
-            <form onSubmit={createTask} className="flex flex-wrap gap-3">
-              <input
-                className="flex-1 min-w-48 px-4 py-2.5 rounded-xl text-sm outline-none placeholder-slate-500 transition-all"
-                style={inputStyle}
-                placeholder="Task title…"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                onFocus={e => (e.target.style.borderColor = "rgba(108,99,255,0.7)")}
-                onBlur={e  => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-              />
-              <select
-                className="px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
-                style={{ ...inputStyle, minWidth: "160px", appearance: "none" }}
-                value={assignedTo}
-                onChange={e => setAssignedTo(e.target.value)}
-              >
-                <option value="">Assign to…</option>
-                {users.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
-              </select>
-              <input
-                type="date"
-                className="px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
-                style={inputStyle}
-                value={dueDate}
-                onChange={e => setDueDate(e.target.value)}
-              />
-              <button
-                type="submit"
-                disabled={creating || !title || !assignedTo}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                style={{
-                  background: "linear-gradient(135deg, #6c63ff, #4f46e5)",
-                  opacity: (creating || !title || !assignedTo) ? 0.5 : 1
-                }}
-              >
-                {creating ? <span className="spinner" /> : null}
-                {creating ? "Adding…" : "Add Task"}
-              </button>
-            </form>
-          </div>
+          <TaskModal
+            users={users}
+            title={title}           setTitle={setTitle}
+            assignedTo={assignedTo} setAssignedTo={setAssignedTo}
+            dueDate={dueDate}       setDueDate={setDueDate}
+            creating={creating}
+            onSubmit={createTask}
+            onClose={closeModal}
+          />
         )}
 
-        {/* ── Filters ── */}
+       
         <div className="flex gap-2 mb-6 fade-up flex-wrap">
           {[
             { key: "all",      label: "All Tasks" },
@@ -189,7 +154,7 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* ── Kanban Board ── */}
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 fade-up">
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
             <div key={key} className="rounded-2xl p-4"
