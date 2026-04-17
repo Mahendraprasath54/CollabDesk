@@ -7,10 +7,23 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
   const [selected, setSelected] = useState(task.status)
   const [saving,   setSaving]   = useState(false)
 
-  const userId     = String(user?._id || user?.id || "")
-  const isCreator  = String(task.createdBy?._id  || "") === userId
-  const isAssignee = String(task.assignedTo?._id || "") === userId
-  const canEdit    = isAssignee   // only the assignee can move the task
+  const userId      = String(user?._id || user?.id || "")
+  const creatorId   = String(task.createdBy?._id || task.createdBy || "")
+  const assigneeId  = String(task.assignedTo?._id || task.assignedTo || "")
+
+  const isCreator   = creatorId === userId
+  const isAssignee  = assigneeId === userId
+  const canEdit     = isCreator
+
+  // Diagnostics for debugging permission mismatch
+  useEffect(() => {
+    console.log("Modal Auth Diagnostic:", { userId, creatorId, isMatch: isCreator })
+  }, [userId, creatorId])
+
+  // Update internal state if the task prop changes (from fetchTasks)
+  useEffect(() => {
+    setSelected(task.status)
+  }, [task.status])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose() }
@@ -24,10 +37,15 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
 
   const handleSave = async () => {
     if (selected === task.status) { onClose(); return }
-    setSaving(true)
-    await onStatusChange(task._id, selected)
-    setSaving(false)
-    onClose()
+    try {
+      setSaving(true)
+      await onStatusChange(task._id, selected)
+      setSaving(false)
+      onClose()
+    } catch (e) {
+      setSaving(false)
+      // Error is handled in updateStatus
+    }
   }
 
   const cfg = STATUS_CONFIG[selected] || STATUS_CONFIG.todo
@@ -178,8 +196,8 @@ const TaskDetailModal = ({ task, user, onStatusChange, onClose }) => {
             <p className="text-xs mt-2 text-center"
               style={{ color: canEdit ? "#475569" : "#ef4444" }}>
               {canEdit
-                ? "You are the assignee — you can move this task."
-                : "Only the assignee can move this task between stages."}
+                ? "You created this task — you can move it between stages."
+                : "Only the creator of this task can move it between stages."}
             </p>
           </div>
 

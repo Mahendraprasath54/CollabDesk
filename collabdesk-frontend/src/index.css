@@ -5,7 +5,12 @@
 ::-webkit-scrollbar-thumb { background: #2a2b3d; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3b50; }
 
+
+/* Dark color-scheme so native date pickers use dark calendar popups */
+:root { color-scheme: dark; }
+
 * { box-sizing: border-box; }
+
 
 body {
   background: #0d0e14;

@@ -25,7 +25,8 @@ const Login = () => {
         const res = await API.post("/auth/login", { email, password })
         localStorage.setItem("token", res.data.token)
         localStorage.setItem("user",  JSON.stringify(res.data.user))
-        navigate("/dashboard")
+        // Hard redirect so App.jsx re-evaluates auth and Dashboard starts fresh
+        window.location.href = "/dashboard"
         } catch (err) {
         setError(err.response?.data?.msg || "Invalid credentials. Please try again.")
         } finally {

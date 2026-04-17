@@ -147,7 +147,7 @@ const TaskModal = ({ users, title, setTitle, assignedTo, setAssignedTo, dueDate,
               type="date"
               value={dueDate}
               onChange={e => setDueDate(e.target.value)}
-              style={{ ...inputStyle, colorScheme: "dark" }}
+              style={inputStyle}
               onFocus={handleFocus}
               onBlur={handleBlur}
             />

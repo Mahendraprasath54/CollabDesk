@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import API from "../utils/api"
 import socket from "../utils/socket"
 import Header from "../components/Header"
-import TaskCard, { STATUS_CONFIG } from "../components/TaskCard"
+import TaskCard, { STATUS_CONFIG, getDaysLeft } from "../components/TaskCard"
 import TaskModal from "../components/TaskModal"
 import TaskDetailModal from "../components/TaskDetailModal"
 
@@ -18,6 +18,7 @@ const Dashboard = () => {
   const [creating,   setCreating]  = useState(false)
   const [showForm,   setShowForm]  = useState(false)
   const [selectedTask, setSelectedTask] = useState(null)
+  const [alertDismissed, setAlertDismissed] = useState(false)
 
   const user = (() => {
     try { return JSON.parse(localStorage.getItem("user")) } catch { return null }
@@ -62,7 +63,10 @@ const Dashboard = () => {
     if (!title || !assignedTo) return
     setCreating(true)
     try {
-      await API.post("/tasks", { title, assignedTo, dueDate })
+      // Don't send empty dueDate — Mongoose can't cast "" to a Date
+      const payload = { title, assignedTo }
+      if (dueDate) payload.dueDate = dueDate
+      await API.post("/tasks", payload)
       await fetchTasks()      // update board immediately
       setTitle(""); setAssignedTo(""); setDueDate("")
       setShowForm(false)
@@ -78,23 +82,48 @@ const Dashboard = () => {
       await API.put(`/tasks/${id}`, { status })
       await fetchTasks()   // refresh board immediately
     } catch(e) {
-      console.log(e)
+      const msg = e.response?.data?.msg || e.message
+      console.error("Status Update Failed:", msg)
+      alert("Permission Denied: " + msg)
     }
   }
 
   const userId  = String(user?._id || user?.id || "")
-  const canEdit = (task) =>
-    String(task.assignedTo?._id || "") === userId
 
-  // Filter
-  let filtered = tasks
-  if (filter === "assigned") filtered = tasks.filter(t => t.assignedTo?._id === user?._id)
-  if (filter === "created")  filtered = tasks.filter(t => t.createdBy?._id  === user?._id)
+  // ── Sync selectedTask if tasks array refreshes while modal is open ──
+  useEffect(() => {
+    if (selectedTask) {
+      const fresh = (tasks || []).find(t => String(t._id) === String(selectedTask._id))
+      if (fresh) setSelectedTask(fresh)
+    }
+  }, [tasks])
+
+  // ── Filter tasks ──
+  let filtered = tasks || []
+  if (filter === "assigned") filtered = (tasks || []).filter(t => String(t.assignedTo?._id || t.assignedTo || "") === userId)
+  if (filter === "created")  filtered = (tasks || []).filter(t => String(t.createdBy?._id  || t.createdBy  || "") === userId)
+
+  // ── Sort helper: soonest due date first, no-date tasks go last ──
+  const sortByDue = (arr) =>
+    [...arr].sort((a, b) => {
+      if (!a.dueDate && !b.dueDate) return 0
+      if (!a.dueDate) return 1
+      if (!b.dueDate) return -1
+      return new Date(a.dueDate) - new Date(b.dueDate)
+    })
+
+  // ── Tasks assigned to me expiring in ≤3 days (for alert banner) ──
+  const urgentForMe = tasks.filter(t => {
+    if (String(t.assignedTo?._id || "") !== userId) return false
+    if (t.status === "done") return false
+    const d = getDaysLeft(t.dueDate)
+    return d !== null && d >= 0 && d <= 3
+  })
 
   const columns = {
-    todo:          filtered.filter(t => t.status === "todo"),
-    "in-progress": filtered.filter(t => t.status === "in-progress"),
-    done:          filtered.filter(t => t.status === "done")
+    todo:          sortByDue(filtered.filter(t => t.status === "todo")),
+    "in-progress": sortByDue(filtered.filter(t => t.status === "in-progress")),
+    done:          filtered.filter(t => t.status === "done")   // done: no urgency sort needed
   }
 
   const closeModal = () => {
@@ -144,7 +173,55 @@ const Dashboard = () => {
           />
         )}
 
-       
+        {/* ── Urgency alert banner ── */}
+        {urgentForMe.length > 0 && !alertDismissed && (
+          <div className="mb-6 rounded-2xl p-4 fade-up"
+            style={{
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.25)"
+            }}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ background: "rgba(239,68,68,0.15)" }}>
+                  <svg className="w-4 h-4" style={{ color: "#f87171" }} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold mb-1" style={{ color: "#f87171" }}>
+                    ⚠️ You have {urgentForMe.length} task{urgentForMe.length > 1 ? "s" : ""} expiring soon!
+                  </p>
+                  <ul className="space-y-1">
+                    {urgentForMe.map(t => {
+                      const d    = getDaysLeft(t.dueDate)
+                      const isCr = d <= 1
+                      return (
+                        <li key={t._id} className="flex items-center gap-2 text-xs">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ background: isCr ? "#f87171" : "#fbbf24" }} />
+                          <span className="font-medium text-white">{t.title}</span>
+                          <span className="font-semibold"
+                            style={{ color: isCr ? "#f87171" : "#fbbf24" }}>
+                            {d === 0 ? "— Due today!" : d === 1 ? "— Due tomorrow!" : `— Due in ${d} days`}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              </div>
+              <button onClick={() => setAlertDismissed(true)}
+                className="shrink-0 text-slate-500 hover:text-slate-300 transition-colors mt-0.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+
         <div className="flex gap-2 mb-6 fade-up flex-wrap">
           {[
             { key: "all",      label: "All Tasks" },
