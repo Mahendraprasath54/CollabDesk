@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import API from "../utils/api"
 import socket from "../utils/socket"
 import Header from "../components/Header"
 import TaskCard, { STATUS_CONFIG } from "../components/TaskCard"
 import TaskModal from "../components/TaskModal"
+import TaskDetailModal from "../components/TaskDetailModal"
 
 const Dashboard = () => {
   const navigate = useNavigate()
@@ -16,6 +17,7 @@ const Dashboard = () => {
   const [filter,     setFilter]    = useState("all")
   const [creating,   setCreating]  = useState(false)
   const [showForm,   setShowForm]  = useState(false)
+  const [selectedTask, setSelectedTask] = useState(null)
 
   const user = (() => {
     try { return JSON.parse(localStorage.getItem("user")) } catch { return null }
@@ -43,11 +45,16 @@ const Dashboard = () => {
      }
   }
 
+  
+  const fetchTasksRef = useRef(fetchTasks)
+  useEffect(() => { fetchTasksRef.current = fetchTasks })
+
   useEffect(() => {
     fetchTasks()
     fetchUsers()
-    socket.on("taskUpdated", fetchTasks)
-    return () => socket.off("taskUpdated")
+    const handler = () => fetchTasksRef.current()
+    socket.on("taskUpdated", handler)
+    return () => socket.off("taskUpdated", handler)
   }, [])
 
   const createTask = async (e) => {
@@ -66,13 +73,18 @@ const Dashboard = () => {
   }
 
   const updateStatus = async (id, status) => {
-    try { await API.put(`/tasks/${id}`, { status }) }
-    catch(e){
-        console.log(e);
+    try {
+      await API.put(`/tasks/${id}`, { status })
+      await fetchTasks()   // refresh board immediately
+    } catch(e) {
+      console.log(e)
+    }
   }
 
+  const userId  = String(user?._id || user?.id || "")
   const canEdit = (task) =>
-    task.createdBy?._id === user?._id || task.assignedTo?._id === user?._id
+    String(task.createdBy?._id  || "") === userId ||
+    String(task.assignedTo?._id || "") === userId
 
   // Filter
   let filtered = tasks
@@ -191,8 +203,7 @@ const Dashboard = () => {
                       key={task._id}
                       task={task}
                       user={user}
-                      canEdit={canEdit(task)}
-                      onStatusChange={updateStatus}
+                      onClick={() => setSelectedTask(task)}
                     />
                   ))
                 )}
@@ -201,6 +212,15 @@ const Dashboard = () => {
           ))}
         </div>
       </main>
+
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          user={user}
+          onStatusChange={updateStatus}
+          onClose={() => setSelectedTask(null)}
+        />
+      )}
     </div>
   )
 }
