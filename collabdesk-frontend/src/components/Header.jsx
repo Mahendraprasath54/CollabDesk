@@ -8,7 +8,9 @@ const Header = () => {
   const userName  = user?.name  || "User"
   const teamName  = user?.team?.name || user?.teamName || "My Team"
   // Show short team ID 6 char 
-  const teamId    = user?.team?._id
+  const teamId    = user?.team_id 
+    ? user.team_id 
+    : user?.team?._id
     ? `#${String(user.team._id).slice(-6).toUpperCase()}`
     : user?.team
     ? `#${String(user.team).slice(-6).toUpperCase()}`
@@ -36,8 +38,7 @@ const Header = () => {
         borderColor: "rgba(255,255,255,0.07)"
       }}
     >
-      {/* ── Brand ── */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(user.role === "admin" ? "/admin" : "/dashboard")}>
         <div className="flex items-center justify-center w-9 h-9 rounded-xl"
           style={{ background: "linear-gradient(135deg, #6c63ff, #4f46e5)" }}>
           <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -48,17 +49,16 @@ const Header = () => {
         <span className="text-white font-bold text-lg tracking-tight">CollabDesk</span>
       </div>
 
-      {/* ── Right side team info , user + logout ── */}
       <div className="flex items-center gap-3">
 
         
         <div className="hidden sm:flex flex-col items-end mr-1">
-          <span className="text-xs font-semibold text-slate-300 leading-tight">{teamName}</span>
-          <span className="text-xs font-mono" style={{ color: "#818cf8" }}>{teamId}</span>
+          <span className="text-xs font-semibold text-slate-300 leading-tight">{user.role === "admin" ? "Management Mode" : teamName}</span>
+          <span className="text-xs font-mono" style={{ color: "#818cf8" }}>{user.role === "admin" ? "ADMIN" : teamId}</span>
         </div>
 
         <button
-          onClick={() => navigate("/analytics")}
+          onClick={() => navigate(user.role === "admin" ? "/admin" : "/analytics")}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
           style={{
             background: "rgba(129,140,248,0.1)",
@@ -71,7 +71,7 @@ const Header = () => {
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
-          Stats
+          {user.role === "admin" ? "Admin Panel" : "Stats"}
         </button>
 
         

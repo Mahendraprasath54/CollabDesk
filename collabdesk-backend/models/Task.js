@@ -20,6 +20,7 @@ const taskSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Team"
   },
+  team_id: String,
   dueDate: Date,
   priority: {
     type: String,

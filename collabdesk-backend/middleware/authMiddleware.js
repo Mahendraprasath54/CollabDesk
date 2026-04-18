@@ -16,7 +16,9 @@ module.exports = async (req, res, next) => {
     req.user = {
       id:   user._id.toString(),
       name: user.name,
-      team: user.team
+      team: user.team,
+      team_id: user.team_id,
+      role: user.role
     }
 
     next()

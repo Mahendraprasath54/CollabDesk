@@ -25,6 +25,14 @@ app.use("/api/tasks", require("./routes/taskRoutes"))
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id)
+
+  socket.on("joinTeam", (teamId) => {
+    if (teamId) {
+      socket.join(teamId.toString())
+      console.log(`Socket ${socket.id} joined team room: ${teamId}`)
+    }
+  })
+
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id)
   })

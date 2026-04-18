@@ -8,7 +8,14 @@ const Analytics = () => {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const user = (() => {
+    try { return JSON.parse(localStorage.getItem("user")) } catch { return null }
+  })()
+
   useEffect(() => {
+    if (!localStorage.getItem("token")) return navigate("/")
+    if (!user?.team) return navigate("/dashboard")
+
     const fetchAnalytics = async () => {
       try {
         const res = await API.get("/tasks/analytics")
@@ -20,7 +27,7 @@ const Analytics = () => {
       }
     }
     fetchAnalytics()
-  }, [])
+  }, [navigate, user])
 
   if (loading) return (
     <div className="min-h-screen flex flex-col" style={{ background: "#0d0e14" }}>

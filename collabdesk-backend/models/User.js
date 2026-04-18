@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Team"
   },
+  team_id: String,
   avatar: String,
   bio: String
 }, { timestamps: true })

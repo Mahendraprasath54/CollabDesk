@@ -20,16 +20,10 @@ exports.register = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10)
 
-    let team = await Team.findOne()
-    if (!team) {
-      team = await Team.create({ name: "Default Team" })
-    }
-
     const user = await User.create({
       name,
       email,
-      password: hashed,
-      team: team._id
+      password: hashed
     })
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
@@ -60,12 +54,59 @@ exports.login = async (req, res) => {
   }
 }
 
-exports.Users = async(req,res) => {
-  const users = await require("../models/User")
-    .find()
-    .select("name _id")
+exports.createTeam = async (req, res) => {
+  try {
+    const { teamName, memberIds } = req.body
+    if (!teamName || !Array.isArray(memberIds) || memberIds.length === 0) {
+      return res.status(400).json({ msg: "Team name and members are required" })
+    }
+    console.log("Creating team:", teamName, "with members:", memberIds)
+    
+    // 1. Create Team
+    const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+    const team = await Team.create({ 
+      name: teamName,
+      team_id: teamName,
+      joinCode
+    })
+    console.log("Team created successfully:", team._id)
 
-  res.json(users)
+    // 2. Assign members to this team
+    const updateResult = await User.updateMany(
+      { _id: { $in: memberIds } },
+      { $set: { 
+        team: team._id,
+        team_id: teamName 
+      } }
+    )
+    console.log("Users updated result:", updateResult)
+
+    res.json({ msg: "Team created and members assigned", team })
+  } catch (err) {
+    console.error("DEBUG CREATE TEAM ERROR:", err)
+    res.status(500).json({ 
+      msg: "Internal Server Error", 
+      error: err.message,
+      details: err
+    })
+  }
+}
+
+
+exports.Users = async(req,res) => {
+  try {
+    let query = {}
+    if (req.user.role !== "admin") {
+      query = { team: req.user.team }
+    }
+    
+    const users = await User.find(query)
+      .select("name email role team")
+      .populate("team")
+    res.json(users)
+  } catch (err) {
+    res.status(500).json({ err: err.message })
+  }
 }
 
 exports.updateProfile = async (req, res) => {

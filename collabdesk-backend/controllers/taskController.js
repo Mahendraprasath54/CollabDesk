@@ -5,10 +5,13 @@ exports.createTask = async (req, res) => {
     const task = await Task.create({
       ...req.body,
       createdBy: req.user.id,
-      team: req.user.team
+      team: req.user.team,
+      team_id: req.user.team_id
     })
 
-    req.app.get("io").emit("taskUpdated")
+    if (req.user.team) {
+      req.app.get("io").to(req.user.team.toString()).emit("taskUpdated")
+    }
 
     res.json(task)
   } catch (err) {
@@ -25,8 +28,8 @@ exports.getTasks = async (req, res) => {
       dueDate: { $lt: startOfToday },
       status:  { $ne: "done" }
     })
-    if (expired.deletedCount > 0) {
-      req.app.get("io").emit("taskUpdated")
+    if (expired.deletedCount > 0 && req.user.team) {
+      req.app.get("io").to(req.user.team.toString()).emit("taskUpdated")
     }
 
     const tasks = await Task.find({ team: req.user.team })
@@ -76,9 +79,11 @@ exports.updateTask = async (req, res) => {
       { new: true }
     )
 
-    req.app.get("io").emit("taskUpdated")
-    if (activityMsg) {
-      req.app.get("io").emit("taskNotification", activityMsg)
+    if (req.user.team) {
+      req.app.get("io").to(req.user.team.toString()).emit("taskUpdated")
+      if (activityMsg) {
+        req.app.get("io").to(req.user.team.toString()).emit("taskNotification", activityMsg)
+      }
     }
 
     res.json(updated)
