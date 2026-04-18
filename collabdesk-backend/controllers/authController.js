@@ -32,7 +32,8 @@ exports.register = async (req, res) => {
       team: team._id
     })
 
-    res.json(user)
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
+    res.json({ token, user })
   } catch (err) {
     res.status(500).json({ err: err.message })
   }

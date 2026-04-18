@@ -34,13 +34,18 @@ const Register = () => {
 
     setLoading(true)
     try {
-      await API.post("/auth/register", {
+      const res = await API.post("/auth/register", {
         name: form.name,
         email: form.email,
         password: form.password
       })
-      setSuccess("Account created! Redirecting to login…")
-      setTimeout(() => navigate("/"), 1500)
+      
+      const { token, user } = res.data
+      localStorage.setItem("token", token)
+      localStorage.setItem("user", JSON.stringify(user))
+
+      setSuccess("Account created! Welcome to CollabDesk...")
+      setTimeout(() => navigate("/dashboard"), 1500)
     } catch (err) {
       setError(err.response?.data?.msg || "Registration failed. Please try again.")
     } finally {
