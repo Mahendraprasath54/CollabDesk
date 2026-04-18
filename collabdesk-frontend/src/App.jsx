@@ -3,6 +3,7 @@ import Login    from "./pages/Login"
 import Register from "./pages/Register"
 import Dashboard from "./pages/Dashboard"
 import Profile from "./pages/Profile"
+import Analytics from "./pages/Analytics"
 
 function App() {
   const isAuth = !!localStorage.getItem("token")
@@ -18,6 +19,10 @@ function App() {
       <Route
         path="/profile"
         element={isAuth ? <Profile /> : <Navigate to="/" replace />}
+      />
+      <Route
+        path="/analytics"
+        element={isAuth ? <Analytics /> : <Navigate to="/" replace />}
       />
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />

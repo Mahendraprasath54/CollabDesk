@@ -25,7 +25,9 @@ const taskSchema = new mongoose.Schema({
     type: String,
     enum: ["low", "medium", "high"],
     default: "medium"
-  }
+  },
+  startedAt: Date,
+  completedAt: Date
 }, { timestamps: true })
 
 module.exports = mongoose.model("Task", taskSchema)
