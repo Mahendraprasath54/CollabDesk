@@ -5,63 +5,64 @@ const cors = require("cors")
 require("dotenv").config()
 
 const connectDB = require("./config/db")
+const Task = require("./models/Task")
 
 const app = express()
 const server = http.createServer(app)
 
 const io = new Server(server, {
-  cors: { origin: "*" }
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"]
+  }
 })
 
 app.set("io", io)
 
-app.use(cors())
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE"]
+}))
+
 app.use(express.json())
 
 connectDB()
 
-app.use("/api/auth",  require("./routes/authRoutes"))
+app.use("/api/auth", require("./routes/authRoutes"))
 app.use("/api/tasks", require("./routes/taskRoutes"))
 
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id)
+app.get("/", (req, res) => {
+  res.send("CollabDesk API running")
+})
 
+io.on("connection", (socket) => {
   socket.on("joinTeam", (teamId) => {
     if (teamId) {
       socket.join(teamId.toString())
-      console.log(`Socket ${socket.id} joined team room: ${teamId}`)
     }
   })
 
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id)
-  })
+  socket.on("disconnect", () => {})
 })
-
-// ── Expired task cleanup ──────────────────────────────
-// Deletes non-done tasks whose dueDate has passed.
-// Runs 5 s after startup (so DB is ready) then every 30 min.
-const Task = require("./models/Task")
 
 const runCleanup = async () => {
   try {
-    // Delete non-done tasks due BEFORE today (not today itself)
-    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0)
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+
     const result = await Task.deleteMany({
       dueDate: { $lt: startOfToday },
-      status:  { $ne: "done" }
+      status: { $ne: "done" }
     })
+
     if (result.deletedCount > 0) {
-      io.emit("taskUpdated") // push real-time refresh to all clients
-      console.log(`🧹 Deleted ${result.deletedCount} expired task(s)`)
+      io.emit("taskUpdated")
     }
-  } catch (err) {
-    console.error("Cleanup error:", err.message)
-  }
+  } catch (err) {}
 }
 
-setTimeout(runCleanup, 5000)                 // run once on startup
-setInterval(runCleanup, 30 * 60 * 1000)     // then every 30 minutes
+setTimeout(runCleanup, 5000)
+setInterval(runCleanup, 30 * 60 * 1000)
 
 const PORT = process.env.PORT || 5000
-server.listen(PORT, () => console.log(`Server running on ${PORT}`))
+server.listen(PORT)
